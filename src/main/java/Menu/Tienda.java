@@ -2,6 +2,12 @@ package Menu;
 
 import java.util.*;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+
 public class Tienda {
     private List<Producto> productos;
     private List<Proveedor> proveedores;
@@ -22,26 +28,40 @@ public class Tienda {
     }
 
     public void venderProducto(String nombreProducto, int cantidad) {
-        for (Producto producto : productos) {
-            if (producto.getNombre().equals(nombreProducto) && producto.getStock() >= cantidad) {
-                producto.setStock(producto.getStock() - cantidad);
-                ventas.add(new Venta(producto, cantidad, new Date()));
+        try {
+            Producto producto = Producto.getProductoPorNombre(nombreProducto);
+            if (producto != null && producto.getStock() >= cantidad) {
+                producto.actualizarStock(producto.getStock() - cantidad);
+
+                Connection connection = DatabaseConnection.getConnection();
+                String query = "INSERT INTO ventas (producto_id, cantidad, fecha) VALUES (?, ?, ?)";
+                PreparedStatement preparedStatement = connection.prepareStatement(query);
+                preparedStatement.setInt(1, producto.getId());
+                preparedStatement.setInt(2, cantidad);
+                preparedStatement.setTimestamp(3, new java.sql.Timestamp(new Date().getTime()));
+                preparedStatement.executeUpdate();
+
                 System.out.println("Producto vendido: " + nombreProducto + " Cantidad: " + cantidad);
-                return;
+            } else {
+                System.out.println("Producto no disponible o stock insuficiente");
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        System.out.println("Producto no disponible o stock insuficiente");
     }
 
     public void ingresarMercaderia(String nombreProducto, int cantidad) {
-        for (Producto producto : productos) {
-            if (producto.getNombre().equals(nombreProducto)) {
-                producto.setStock(producto.getStock() + cantidad);
+        try {
+            Producto producto = Producto.getProductoPorNombre(nombreProducto);
+            if (producto != null) {
+                producto.actualizarStock(producto.getStock() + cantidad);
                 System.out.println("Mercadería ingresada: " + nombreProducto + " Cantidad: " + cantidad);
-                return;
+            } else {
+                System.out.println("Producto no encontrado");
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        System.out.println("Producto no encontrado");
     }
 
     public void pagarProveedor(String nombreProveedor, double monto) {
